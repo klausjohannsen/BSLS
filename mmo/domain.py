@@ -40,13 +40,16 @@ class Region:
             self.n_solutions_same += 1
 
     def score(self):
+        alpha = 0.5
+        beta = 0.5
+
         s = 1
         for k in range(self.ll.shape[0]):
             s *= self.ur[k] - self.ll[k]
         if self.p is not None:
-            s *= 0.5
-        s *= 0.4 ** self.n_not_converged
-        s *= 0.2 ** self.n_solutions_same
+            s *= alpha
+        s *= beta ** self.n_not_converged
+        s *= beta ** self.n_solutions_same
         return(s)
 
     def split_parameters(self, x):
