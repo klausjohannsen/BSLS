@@ -19,6 +19,17 @@ class Region:
         self.n_not_converged = 0
         self.n_solutions_same = 0
 
+    def midpoint(self):
+        mp = 0.5 * (self.ll + self.ur)
+        return(mp)
+
+    def h(self):
+        h = 1.0
+        for k in range(self.dim):
+            h *= self.ur[k] - self.ll[k]
+        h = h ** (1.0 / self.dim)
+        return(h)
+
     def mod(self, p = None, not_converged = False, solutions_same = False):
         if p is not None:
             assert(self.p is None)
