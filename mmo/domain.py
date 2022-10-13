@@ -17,13 +17,16 @@ class Region:
         self.dim = self.ll.shape[0]
         self.p = p
         self.n_not_converged = 0
+        self.n_solutions_same = 0
 
-    def mod(self, p = None, not_converged = False):
+    def mod(self, p = None, not_converged = False, solutions_same = False):
         if p is not None:
             assert(self.p is None)
             self.p = p
         if not_converged:
             self.n_not_converged += 1
+        if solutions_same:
+            self.n_solutions_same += 1
 
     def score(self):
         s = 1
@@ -31,8 +34,19 @@ class Region:
             s *= self.ur[k] - self.ll[k]
         if self.p is not None:
             s *= 0.5
-        s *= 0.5 ** self.n_not_converged
+        s *= 0.4 ** self.n_not_converged
+        s *= 0.2 ** self.n_solutions_same
         return(s)
+
+    def split_parameters(self, x):
+        d = np.inf
+        for k in range(self.dim):
+            eta = (x[k] - self.ll[k]) / (self.ur[k] - self.ll[k])
+            if np.abs(eta - 0.5) < d:
+                d = np.abs(eta - 0.5)
+                k_best = k
+                eta_best = eta
+        return(k_best, eta_best)
 
     def bisect(self, axis = None, eta = 0.5):
         if axis is None:
@@ -97,14 +111,17 @@ class Domain:
         self.dim = self.ll.shape[0]
         self.regions = [Region(ll = self.ll, ur = self.ur)]
 
-    def pop_region(self):
+    def pop_region(self, r = None):
         assert(len(self.regions) > 0)
-        score_max = -np.inf
-        for region in self.regions:
-            score = region.score()
-            if score > score_max:
-                score_max = score
-                region_max = region
+        if r is None:
+            score_max = -np.inf
+            for region in self.regions:
+                score = region.score()
+                if score > score_max:
+                    score_max = score
+                    region_max = region
+        else:
+            region_max = r
         self.regions.remove(region_max)
         return(region_max)
 

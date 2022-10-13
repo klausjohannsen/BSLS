@@ -2,18 +2,22 @@
 import numpy as np
 import numpy.linalg as la
 import mmo
+from scipy.spatial import distance_matrix
 
 ####################################################################################################
 # config
 ####################################################################################################
-N_SOL = 3
+N_SOL = 5
 DIM = 2
 BUDGET = 10000000
 
 ####################################################################################################
 # solutions, objective function and domain
 ####################################################################################################
-solutions = 0.1 + 0.8 * np.random.rand(N_SOL, DIM)
+solutions1 = 0.1 + 0.1 * np.random.rand(N_SOL, DIM)
+solutions2 = 0.8 + 0.1 * np.random.rand(N_SOL, DIM)
+solutions = np.vstack((solutions1, solutions2))
+N_SOL *= 2
 
 def solutions_found(x):
     dm = distance_matrix(x, solutions)
@@ -30,23 +34,17 @@ dom = mmo.Domain(ll = [0]*DIM, ur = [1]*DIM)
 ####################################################################################################
 # run
 ####################################################################################################
-mmm = mmo.MultiModalMinimizer(f = f, domain = dom, budget = BUDGET, verbose = 1)
-for m in mmm:
+mmm = mmo.MultiModalMinimizer(f = f, domain = dom, budget = BUDGET, verbose = 1, max_iter = 100)
+for k, m in enumerate(mmm):
     print(m)
-
     print()
-    for r in m.domain.regions:
-        print(r)
+    n = solutions_found(m.solutions_x)
+    print(f'solutions found: {n}')
+    print()
+    if n == N_SOL:
+        break
 
-    m.domain.plot(x = solutions)
+m.domain.plot(x = solutions)
 
 
-sols = 1 + np.random.rand(N_SOL, DIM)
-
-r = dom.pop_region()
-r1, r2 = r.bisect(axis = 0, eta = 0.25)
-dom.push_regions([r1, r2])
-print(dom)
-
-dom.plot(x = sols)
 
