@@ -52,7 +52,7 @@ class MultiModalMinimizer:
         for k in range(self.dim):
             sigma *= r.ur[k] - r.ll[k]
         sigma = 0.3 * sigma ** (1 / self.dim)
-        cma = mmo.Cma(f = self.fct, x0 = 0.5 * (r.ll + r.ur) , sigma = sigma)
+        cma = mmo.Cma(f = self.fct, region = r)
 
         # update domain
         r1, r2 = r.bisect()

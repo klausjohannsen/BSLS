@@ -7,17 +7,14 @@ from scipy.spatial import distance_matrix
 ####################################################################################################
 # config
 ####################################################################################################
-N_SOL = 5
+N_SOL = 10
 DIM = 2
 BUDGET = 10000000
 
 ####################################################################################################
 # solutions, objective function and domain
 ####################################################################################################
-solutions1 = 0.1 + 0.1 * np.random.rand(N_SOL, DIM)
-solutions2 = 0.8 + 0.1 * np.random.rand(N_SOL, DIM)
-solutions = np.vstack((solutions1, solutions2))
-N_SOL *= 2
+solutions = 0.1 + np.array([0.01, 0.8]).reshape(1, DIM) * np.random.rand(N_SOL, DIM)
 
 def solutions_found(x):
     dm = distance_matrix(x, solutions)
