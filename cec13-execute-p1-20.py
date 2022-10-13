@@ -5,7 +5,6 @@ import numpy as np
 import numpy.linalg as la
 import mmo 
 from modules_cec13.cec2013 import how_many_goptima, CEC2013
-#from hyperqueue import Job, LocalCluster
 from time import time
 import sys
 
@@ -59,7 +58,7 @@ for k, m in enumerate(mmm):
     print(m)
     print()
 
-m.domain.plot(x = solutions)
+#m.domain.plot(x = solutions)
 
 ####################################################################################################
 # peak rate

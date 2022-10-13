@@ -48,7 +48,10 @@ class MultiModalMinimizer:
     def __next__(self):
         # search in region
         r = self.domain.pop_region()
-        sigma = 0.1 * np.sqrt((r.ur[0] - r.ll[0]) * (r.ur[1] - r.ll[1]))
+        sigma = 1
+        for k in range(self.dim):
+            sigma *= r.ur[k] - r.ll[k]
+        sigma = 0.3 * sigma ** (1 / self.dim)
         cma = mmo.Cma(f = self.fct, x0 = 0.5 * (r.ll + r.ur) , sigma = sigma)
 
         # update domain
