@@ -8,8 +8,8 @@ import random
 class Cma:
     def __init__(self, f = None, region = None, max_gen = 10**20):
         assert(region is not None)
-        x0 = region.midpoint()
-        C = 0.5 * np.diag(region.ur - region.ll) / 3
+        x0 = region.midpoint
+        C = 0.5 * np.diag(region.l) / 3
         optimizer = CMA(mean = x0, sigma = 1.0, cov = C)
         y_best = np.inf
         n_fct_eval = 0

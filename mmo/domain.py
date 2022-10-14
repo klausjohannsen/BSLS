@@ -23,10 +23,10 @@ class Region:
         self.penalty = 0
 
         # score
-        self.score = self.volume * (0.5 ** self.penalty)
+        self.score = self.volume * (0.4 ** self.penalty)
         if self.p is not None: self.score *= 0.5
 
-    def __llur_contains(ll, ur, x):
+    def __llur_contains(self, ll, ur, x):
         c = True
         for k in range(x.shape[0]):
             if x[k] < ll[k]: c = False
@@ -34,7 +34,7 @@ class Region:
         return(c)
 
     def contains(self, x):
-        return(__llur_contains(self.ll, self.ur, x))
+        return(self.__llur_contains(self.ll, self.ur, x))
 
     def __split_parameters(self, x):
         assert(self.contains(x))
@@ -79,8 +79,8 @@ class Region:
             ll_2[axis] = mp
 
             # check where point lies
-            c1 = __llur_contains(ll_1, ur_1, self.p)
-            c2 = __llur_contains(ll_2, ur_2, self.p)
+            c1 = self.__llur_contains(ll_1, ur_1, self.p)
+            c2 = self.__llur_contains(ll_2, ur_2, self.p)
             assert(c1 ^ c2)
 
             # penalized
@@ -102,8 +102,8 @@ class Region:
             ll_2[axis] = mp
 
             # check where point lies
-            c1 = __llur_contains(ll_1, ur_1, p)
-            c2 = __llur_contains(ll_2, ur_2, p)
+            c1 = self.__llur_contains(ll_1, ur_1, p)
+            c2 = self.__llur_contains(ll_2, ur_2, p)
             assert(c1 ^ c2)
 
             # not penalized
@@ -119,19 +119,27 @@ class Region:
             ur_1 = copy(self.ur)
             ll_2 = copy(self.ll)
             ur_2 = copy(self.ur)
-            axis, eta = self.__split_parameters(p)
+            axis, eta = self.__split_parameters(0.5 * (self.p + p))
             ur_1[axis] = self.ll[axis] + eta * self.l[axis]
             ll_2[axis] = ur_1[axis]
 
             # check where points lies
-            self_c1 = __llur_contains(ll_1, ur_1, self.p)
-            self_c2 = __llur_contains(ll_2, ur_2, self.p)
+            self_c1 = self.__llur_contains(ll_1, ur_1, self.p)
+            self_c2 = self.__llur_contains(ll_2, ur_2, self.p)
             assert(self_c1 ^ self_c2)
-            c1 = __llur_contains(ll_1, ur_1, p)
-            c2 = __llur_contains(ll_2, ur_2, p)
+            c1 = self.__llur_contains(ll_1, ur_1, p)
+            c2 = self.__llur_contains(ll_2, ur_2, p)
             assert(c1 ^ c2)
-            assert(self_c1 ^ c1)
-            assert(self_c2 ^ c2)
+            if self_c1 == c1 or self_c2 == c2:
+                print('ll', self.ll)
+                print('ur', self.ur)
+                print('ll_1', ll_1)
+                print('ur_1', ur_1)
+                print('ll_2', ll_2)
+                print('ur_2', ur_2)
+                print('self.p', self.p)
+                print('p', p)
+                exit()
 
             # not penalized
             p1 = p if c1 else self.p
@@ -164,29 +172,37 @@ class Domain:
         assert(len(self.regions) > 0)
         score_max = -np.inf
         for region in self.regions:
-            score = region.score()
-            if score > score_max:
-                score_max = score
+            if region.score > score_max:
+                score_max = region.score
                 region_max = region
         return(region_max)
 
     def get_region_with_point(self, x):
         region = None
-        for r in domain.regions:
+        for r in self.regions:
             if r.contains(x):
                 assert(region is None)
                 region = r 
         return(region)
 
     def replace(self, regions_in = None, regions_out = None):
-        GOON HERE
+        for r in regions_out:
+            self.regions.remove(r)
+        self.regions += regions_in
+
+    def solutions(self):
+        s = []
+        for r in self.regions:
+            if r.p is not None:
+                s += [r.p]
+        return(np.vstack(s))
 
     def plot(self, x = None):
         if x is not None:
             plt.scatter(x[:,0], x[:,1], c = 'orange', s = 50)
         if self.dim == 2:
             for r in self.regions:
-                p = r.points()
+                p = r.closed_corner_polygon
                 plt.plot(p[:,0], p[:,1], c = 'black')
                 if r.p is not None:
                     plt.scatter(r.p[0], r.p[1], c = 'green', s = 10)

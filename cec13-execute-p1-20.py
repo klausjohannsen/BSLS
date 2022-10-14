@@ -66,11 +66,12 @@ for k, m in enumerate(mmm):
 CEC_f = CEC2013(PROBLEM)
 n_optima = CEC_f.get_no_goptima()
 count = np.zeros((5))
-count[0], seeds = how_many_goptima(m.solutions_x, CEC_f, 1e-1)
-count[1], seeds = how_many_goptima(m.solutions_x, CEC_f, 1e-2)
-count[2], seeds = how_many_goptima(m.solutions_x, CEC_f, 1e-3)
-count[3], seeds = how_many_goptima(m.solutions_x, CEC_f, 1e-4)
-count[4], seeds = how_many_goptima(m.solutions_x, CEC_f, 1e-5)
+x = m.domain.solutions()
+count[0], seeds = how_many_goptima(x, CEC_f, 1e-1)
+count[1], seeds = how_many_goptima(x, CEC_f, 1e-2)
+count[2], seeds = how_many_goptima(x, CEC_f, 1e-3)
+count[3], seeds = how_many_goptima(x, CEC_f, 1e-4)
+count[4], seeds = how_many_goptima(x, CEC_f, 1e-5)
 peake_rate = np.mean(count) / n_optima
 
 print("#####################")

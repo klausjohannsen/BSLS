@@ -7,15 +7,15 @@ from scipy.spatial import distance_matrix
 ####################################################################################################
 # config
 ####################################################################################################
-N_SOL = 2
-DIM = 50
-BUDGET = 10000000
+N_SOL = 100
+DIM = 2 
+BUDGET = 1000000000
 
 ####################################################################################################
 # solutions, objective function and domain
 ####################################################################################################
-s1 = 0.1 + 0.01 * np.random.rand(N_SOL, DIM)
-solutions = s1
+alpha = 2* 3.141562 * np.random.rand(N_SOL)
+solutions = 0.5 + 0.4* np.vstack((np.sin(alpha), np.cos(alpha))).T
 N_SOL = solutions.shape[0]
 
 def solutions_found(x):
@@ -26,7 +26,7 @@ def solutions_found(x):
 
 def f(x):
     r = la.norm(solutions - x.reshape(1, -1), axis = 1)
-    return(np.min(r))
+    return(np.min(r) ** 0.5)
 
 dom = mmo.Domain(ll = [0]*DIM, ur = [1]*DIM)
 
@@ -34,10 +34,10 @@ dom = mmo.Domain(ll = [0]*DIM, ur = [1]*DIM)
 # run
 ####################################################################################################
 mmm = mmo.MultiModalMinimizer(f = f, domain = dom, budget = BUDGET, verbose = 1, max_iter = 100000)
-for k, m in enumerate(mmm):
+for m in mmm:
     print(m)
     print()
-    n = solutions_found(m.solutions_x)
+    n = solutions_found(m.domain.solutions())
     print(f'solutions found: {n}')
     print()
     if n == N_SOL:
