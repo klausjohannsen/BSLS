@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 # classes
 class Region:
-    def __init__(self, ll = None, ur = None, p = None, no_convergence = False):
+    def __init__(self, ll = None, ur = None, p = None, penalty = 0):
         assert(ll is not None)
         assert(ur is not None)
         self.ll = ll
@@ -16,95 +16,129 @@ class Region:
         assert(self.ll.shape[0] == self.ur.shape[0])
         self.dim = self.ll.shape[0]
         self.p = p
-        self.n_not_converged = 0
-        self.n_solutions_same = 0
+        self.midpoint = 0.5 * (self.ll + self.ur)
+        self.l = self.ur - self.ll
+        self.closed_corner_polygon = np.array([ self.ll[0], self.ll[1], self.ur[0], self.ll[1], self.ur[0], self.ur[1], self.ll[0], self.ur[1], self.ll[0], self.ll[1] ]).reshape(5,2)
+        self.volume = np.prod(self.l)
+        self.penalty = 0
 
-    def midpoint(self):
-        mp = 0.5 * (self.ll + self.ur)
-        return(mp)
+        # score
+        self.score = self.volume * (0.5 ** self.penalty)
+        if self.p is not None: self.score *= 0.5
 
-    def h(self):
-        h = 1.0
-        for k in range(self.dim):
-            h *= self.ur[k] - self.ll[k]
-        h = h ** (1.0 / self.dim)
-        return(h)
+    def __llur_contains(ll, ur, x):
+        c = True
+        for k in range(x.shape[0]):
+            if x[k] < ll[k]: c = False
+            if x[k] >= ur[k]: c = False
+        return(c)
 
-    def mod(self, p = None, not_converged = False, solutions_same = False):
-        if p is not None:
-            assert(self.p is None)
-            self.p = p
-        if not_converged:
-            self.n_not_converged += 1
-        if solutions_same:
-            self.n_solutions_same += 1
+    def contains(self, x):
+        return(__llur_contains(self.ll, self.ur, x))
 
-    def score(self):
-        alpha = 0.5
-        beta = 0.5
-
-        s = 1
-        for k in range(self.ll.shape[0]):
-            s *= self.ur[k] - self.ll[k]
-        if self.p is not None:
-            s *= alpha
-        s *= beta ** self.n_not_converged
-        s *= beta ** self.n_solutions_same
-        return(s)
-
-    def split_parameters(self, x):
+    def __split_parameters(self, x):
+        assert(self.contains(x))
         d = np.inf
         for k in range(self.dim):
-            eta = (x[k] - self.ll[k]) / (self.ur[k] - self.ll[k])
+            eta = (x[k] - self.ll[k]) / self.l[k]
             if np.abs(eta - 0.5) < d:
                 d = np.abs(eta - 0.5)
                 k_best = k
                 eta_best = eta
         return(k_best, eta_best)
 
-    def bisect(self, axis = None, eta = 0.5):
-        if axis is None:
-            l = -1
-            for k in range(self.dim):
-                if self.ur[k] - self.ll[k] > l:
-                    l = self.ur[k] - self.ll[k]
-                    axis = k
-        r1 = copy(self)
-        r1.p = None
-        r2 = copy(self)
-        r2.p = None
-        r1.ur[axis] = self.ll[axis] + eta * (self.ur[axis] - self.ll[axis])
-        r2.ll[axis] = r1.ur[axis]
-        if self.p is not None:
-            e1, i1, p1 = r1 < self.p
-            e2, i2, p2 = r2 < self.p
-            if p1 + p2 == 0:
-                print("ERROR")
-                print(f'e1 = {e1}, i1 = {i1}, p1 = {p1}')
-                print(f'e2 = {e2}, i2 = {i2}, p2 = {p2}')
-                exit()
-        return(r1, r2)
+    def __longest_axis(self):
+        return(np.argmax(self.l))
 
-    def is_in(self, x):
-        is_in = True
-        for k in range(self.dim):
-            if x[k] < self.ll[k]: is_in = False
-            if x[k] > self.ur[k]: is_in = False
-        return(is_in)
+    def bisect(self, p = None):
+        if self.p is None and p is None:
+            # empty region, no point inserted: split equally into two, penalized
+            ll_1 = copy(self.ll)
+            ur_1 = copy(self.ur)
+            ll_2 = copy(self.ll)
+            ur_2 = copy(self.ur)
+            axis = self.__longest_axis()
+            mp = 0.5 * (self.ll[axis] + self.ur[axis])
+            ur_1[axis] = mp
+            ll_2[axis] = mp
 
-    def __lt__(self, x):
-        empty = 1 * (self.p is None)
-        isin = 1 * self.is_in(x)
-        putin = 0
-        if empty + isin == 2:
-            self.p = x
-            putin = 1
-        return(empty, isin, putin)
+            # penalized
+            r1 = Region(ll = ll_1, ur = ur_1, p = None, penalty = self.penalty + 1)
+            r2 = Region(ll = ll_2, ur = ur_2, p = None, penalty = self.penalty + 1)
+            return(r1, r2)
 
-    def points(self):
-        assert(self.dim == 2)
-        points = np.array([ self.ll[0], self.ll[1], self.ur[0], self.ll[1], self.ur[0], self.ur[1], self.ll[0], self.ur[1], self.ll[0], self.ll[1] ]).reshape(5,2)
-        return(points)
+        if self.p is not None and p is None:
+            # non-empty region, no point inserted: split equally into two, penalized
+            ll_1 = copy(self.ll)
+            ur_1 = copy(self.ur)
+            ll_2 = copy(self.ll)
+            ur_2 = copy(self.ur)
+            axis = self.__longest_axis()
+            mp = 0.5 * (self.ll[axis] + self.ur[axis])
+            ur_1[axis] = mp
+            ll_2[axis] = mp
+
+            # check where point lies
+            c1 = __llur_contains(ll_1, ur_1, self.p)
+            c2 = __llur_contains(ll_2, ur_2, self.p)
+            assert(c1 ^ c2)
+
+            # penalized
+            p1 = self.p if c1 else None
+            p2 = self.p if c2 else None
+            r1 = Region(ll = ll_1, ur = ur_1, p = p1, penalty = self.penalty + 1)
+            r2 = Region(ll = ll_2, ur = ur_2, p = p2, penalty = self.penalty + 1)
+            return(r1, r2)
+
+        if self.p is None and p is not None:
+            # empty region, point inserted
+            ll_1 = copy(self.ll)
+            ur_1 = copy(self.ur)
+            ll_2 = copy(self.ll)
+            ur_2 = copy(self.ur)
+            axis = self.__longest_axis()
+            mp = 0.5 * (self.ll[axis] + self.ur[axis])
+            ur_1[axis] = mp
+            ll_2[axis] = mp
+
+            # check where point lies
+            c1 = __llur_contains(ll_1, ur_1, p)
+            c2 = __llur_contains(ll_2, ur_2, p)
+            assert(c1 ^ c2)
+
+            # not penalized
+            p1 = p if c1 else None
+            p2 = p if c2 else None
+            r1 = Region(ll = ll_1, ur = ur_1, p = p1, penalty = self.penalty)
+            r2 = Region(ll = ll_2, ur = ur_2, p = p2, penalty = self.penalty)
+            return(r1, r2)
+
+        if self.p is not None and p is not None:
+            # non-empty region, point inserted
+            ll_1 = copy(self.ll)
+            ur_1 = copy(self.ur)
+            ll_2 = copy(self.ll)
+            ur_2 = copy(self.ur)
+            axis, eta = self.__split_parameters(p)
+            ur_1[axis] = self.ll[axis] + eta * self.l[axis]
+            ll_2[axis] = ur_1[axis]
+
+            # check where points lies
+            self_c1 = __llur_contains(ll_1, ur_1, self.p)
+            self_c2 = __llur_contains(ll_2, ur_2, self.p)
+            assert(self_c1 ^ self_c2)
+            c1 = __llur_contains(ll_1, ur_1, p)
+            c2 = __llur_contains(ll_2, ur_2, p)
+            assert(c1 ^ c2)
+            assert(self_c1 ^ c1)
+            assert(self_c2 ^ c2)
+
+            # not penalized
+            p1 = p if c1 else self.p
+            p2 = p if c2 else self.p
+            r1 = Region(ll = ll_1, ur = ur_1, p = p1, penalty = self.penalty)
+            r2 = Region(ll = ll_2, ur = ur_2, p = p2, penalty = self.penalty)
+            return(r1, r2)
 
     def __str__(self):
         s = '# region\n'
@@ -112,7 +146,8 @@ class Region:
         s += f'll: {self.ll}\n'
         s += f'ur: {self.ur}\n'
         s += f'p: {self.p}\n'
-        s += f'score: {self.score()}\n'
+        s += f'penalty: {self.penalty}\n'
+        s += f'score: {self.score}\n'
         return(s)
     
 class Domain:
@@ -125,26 +160,26 @@ class Domain:
         self.dim = self.ll.shape[0]
         self.regions = [Region(ll = self.ll, ur = self.ur)]
 
-    def pop_region(self, r = None):
+    def get_top_region(self):
         assert(len(self.regions) > 0)
-        if r is None:
-            score_max = -np.inf
-            for region in self.regions:
-                score = region.score()
-                if score > score_max:
-                    score_max = score
-                    region_max = region
-        else:
-            region_max = r
-        self.regions.remove(region_max)
+        score_max = -np.inf
+        for region in self.regions:
+            score = region.score()
+            if score > score_max:
+                score_max = score
+                region_max = region
         return(region_max)
 
-    def push_regions(self, region):
-        if isinstance(region, list):
-            for r in region:
-                self.push_regions(r)
-        else:
-            self.regions += [region]
+    def get_region_with_point(self, x):
+        region = None
+        for r in domain.regions:
+            if r.contains(x):
+                assert(region is None)
+                region = r 
+        return(region)
+
+    def replace(self, regions_in = None, regions_out = None):
+        GOON HERE
 
     def plot(self, x = None):
         if x is not None:
